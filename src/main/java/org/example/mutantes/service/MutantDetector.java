@@ -4,22 +4,14 @@ import org.springframework.stereotype.Service;
 
 import java.util.Set;
 
-/**
- * Servicio que implementa el algoritmo de detección de mutantes.
- * Un humano es mutante si encuentra MÁS DE UNA secuencia de cuatro letras iguales
- * en forma horizontal, vertical o diagonal.
- */
+
 @Service
 public class MutantDetector {
 
     private static final int SEQUENCE_LENGTH = 4;
     private static final Set<Character> VALID_BASES = Set.of('A', 'T', 'C', 'G');
 
-    /**
-     * Determina si una secuencia de ADN pertenece a un mutante
-     * @param dna Array de strings que representa la matriz NxN de ADN
-     * @return true si es mutante, false si no lo es
-     */
+
     public boolean isMutant(String[] dna) {
         // Validación básica
         if (!isValidDna(dna)) {
@@ -76,13 +68,7 @@ public class MutantDetector {
         return false;  // Solo encontró 0 o 1 secuencia
     }
 
-    /**
-     * Valida que el ADN sea correcto:
-     * - No null o vacío
-     * - Matriz cuadrada NxN
-     * - Solo caracteres A, T, C, G
-     * - Tamaño mínimo 4x4
-     */
+    
     private boolean isValidDna(String[] dna) {
         if (dna == null || dna.length == 0) {
             return false;
@@ -109,9 +95,8 @@ public class MutantDetector {
         return true;
     }
 
-    /**
-     * Verifica secuencia horizontal (→)
-     */
+    //Verifica secuencia horizontal
+
     private boolean checkHorizontal(char[][] matrix, int row, int col) {
         final char base = matrix[row][col];
         return matrix[row][col + 1] == base &&
@@ -119,9 +104,9 @@ public class MutantDetector {
                 matrix[row][col + 3] == base;
     }
 
-    /**
-     * Verifica secuencia vertical (↓)
-     */
+
+    //Verifica secuencia vertical
+
     private boolean checkVertical(char[][] matrix, int row, int col) {
         final char base = matrix[row][col];
         return matrix[row + 1][col] == base &&
@@ -129,9 +114,8 @@ public class MutantDetector {
                 matrix[row + 3][col] == base;
     }
 
-    /**
-     * Verifica secuencia diagonal descendente (↘)
-     */
+    //Verifica secuencia diagonal descendente
+
     private boolean checkDiagonalDescending(char[][] matrix, int row, int col) {
         final char base = matrix[row][col];
         return matrix[row + 1][col + 1] == base &&
@@ -139,9 +123,8 @@ public class MutantDetector {
                 matrix[row + 3][col + 3] == base;
     }
 
-    /**
-     * Verifica secuencia diagonal ascendente (↗)
-     */
+    //Verifica secuencia diagonal ascendente
+
     private boolean checkDiagonalAscending(char[][] matrix, int row, int col) {
         final char base = matrix[row][col];
         return matrix[row - 1][col + 1] == base &&
