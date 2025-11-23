@@ -1,0 +1,26 @@
+# Directorios de build
+build/
+target/
+.gradle/
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+
+# Git
+.git/
+.gitignore
+
+# Logs
+*.log
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Documentación
+*.md
+docs/
