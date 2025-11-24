@@ -836,7 +836,7 @@ curl https://examenmercado-3k9.onrender.com/stats
 
 El siguiente diagrama muestra el flujo completo de la API:
 
-![Diagrama de Secuencia](docs/diagrama-secuencia.png)
+<img width="1436" height="1758" alt="diagrama_secuencia" src="https://github.com/user-attachments/assets/f6cb1891-beb7-45aa-baed-9cabfa008937" />
 
 El diagrama incluye:
 - ✅ POST /mutant (DNA mutante)
