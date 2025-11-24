@@ -1,6 +1,5 @@
 package org.example.mutantes.controller;
 
-
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -19,23 +18,17 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-
 @RestController
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Mutant Detector API", description = "API para detectar mutantes mediante análisis de secuencias de ADN")
+@Tag(name = "Mutant Detector API")
 public class MutantController {
 
     private final MutantService mutantService;
     private final StatsService statsService;
 
-
     @PostMapping("/mutant")
-    @Operation(
-            summary = "Verificar si un ADN es mutante",
-            description = "Recibe una secuencia de ADN y determina si pertenece a un mutante. " +
-                    "Un mutante tiene más de una secuencia de 4 letras iguales en forma horizontal, vertical o diagonal."
-    )
+    @Operation(summary = "Verificar si un ADN es mutante")
     @ApiResponses(value = {
             @ApiResponse(
                     responseCode = "200",
@@ -44,44 +37,40 @@ public class MutantController {
             ),
             @ApiResponse(
                     responseCode = "403",
-                    description = "No es mutante (humano)",
+                    description = "No es mutante",
                     content = @Content
             ),
             @ApiResponse(
                     responseCode = "400",
-                    description = "ADN inválido (no cumple formato NxN o caracteres incorrectos)",
+                    description = "ADN inválido",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))
             )
     })
     public ResponseEntity<Void> checkMutant(@Validated @RequestBody DnaRequest request) {
-        log.info("POST /mutant - Verificando ADN...");
+        log.info("POST /mutant - Verificando ADN");
 
         boolean isMutant = mutantService.analyzeDna(request.getDna());
 
         if (isMutant) {
-            log.info("Resultado: MUTANTE ✓");
+            log.info("Resultado: MUTANTE");
             return ResponseEntity.ok().build();
         } else {
-            log.info("Resultado: HUMANO ✗");
+            log.info("Resultado: HUMANO");
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
     }
 
     @GetMapping("/stats")
-    @Operation(
-            summary = "Obtener estadísticas de verificaciones",
-            description = "Retorna las estadísticas de todas las verificaciones de ADN realizadas: " +
-                    "cantidad de mutantes, cantidad de humanos y el ratio entre ambos."
-    )
+    @Operation(summary = "Obtener estadísticas de verificaciones")
     @ApiResponses(value = {
             @ApiResponse(
                     responseCode = "200",
-                    description = "Estadísticas obtenidas exitosamente",
+                    description = "Estadísticas obtenidas",
                     content = @Content(schema = @Schema(implementation = StatsResponse.class))
             )
     })
     public ResponseEntity<StatsResponse> getStats() {
-        log.info("GET /stats - Obteniendo estadísticas...");
+        log.info("GET /stats - Obteniendo estadísticas");
 
         StatsResponse stats = statsService.getStats();
 
