@@ -25,11 +25,10 @@ public class MutantService {
 
     @Transactional
     public boolean analyzeDna(String[] dna) {
-        // Calcular hash del ADN para deduplicación
         String dnaHash = calculateDnaHash(dna);
         log.debug("DNA hash calculado: {}", dnaHash);
 
-        // Buscar en BD si ya fue analizado (CACHÉ)
+        // Buscar en la BD si ya fue analizado
         Optional<DnaRecord> existingRecord = dnaRecordRepository.findByDnaHash(dnaHash);
 
         if (existingRecord.isPresent()) {
@@ -41,7 +40,7 @@ public class MutantService {
         log.debug("Analizando nueva secuencia de ADN...");
         boolean isMutant = mutantDetector.isMutant(dna);
 
-        // Guardar resultado en BD
+        // Guardar resultado en la BD
         DnaRecord record = new DnaRecord(dnaHash, isMutant);
         dnaRecordRepository.save(record);
         log.info("Resultado guardado - Mutante: {}, Hash: {}", isMutant, dnaHash);
@@ -55,7 +54,6 @@ public class MutantService {
             String dnaString = String.join("", dna);
             byte[] hashBytes = digest.digest(dnaString.getBytes(StandardCharsets.UTF_8));
 
-            // Convertir bytes a hexadecimal
             StringBuilder hexString = new StringBuilder();
             for (byte b : hashBytes) {
                 String hex = Integer.toHexString(0xff & b);
