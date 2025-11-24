@@ -1,108 +1,280 @@
-@startuml
-title Diagrama de Secuencia - Detección de Mutantes (POST /mutant)
-autonumber
+@startuml Diagrama de Secuencia - Sistema Detector de Mutantes
 
-actor "Cliente" as Client
-participant ":MutantController" as Controller
-participant ":ValidDnaSequenceValidator" as Validator
-participant ":GlobalExceptionHandler" as Handler
-participant ":MutantService" as Service
-participant ":DnaRecordRepository" as Repository
-participant ":MutantDetector" as Detector
+title Diagrama de Secuencia - API REST Detector de Mutantes
+
+actor Usuario
+participant MutantController
+participant ValidDnaSequenceValidator
+participant GlobalExceptionHandler
+participant MutantService
+participant MutantDetector
+participant DnaRecordRepository
+participant StatsService
 database "H2 Database" as DB
 
-== 1. Recepción y Validación ==
+Usuario -> MutantController : POST /mutant {"dna": ["ATGCGA",...]}
+activate MutantController
 
-Client -> Controller: POST /mutant { "dna": [...] }
-activate Controller
+MutantController -> ValidDnaSequenceValidator : isValid(dna[]): boolean
+activate ValidDnaSequenceValidator
 
-note right of Controller
-  Spring detecta @Validated y ejecuta
-  la validación personalizada
-end note
+ValidDnaSequenceValidator -> ValidDnaSequenceValidator : validar dna != null
+ValidDnaSequenceValidator -> ValidDnaSequenceValidator : validar tamaño >= 4
+ValidDnaSequenceValidator -> ValidDnaSequenceValidator : validar matriz NxN
+ValidDnaSequenceValidator -> ValidDnaSequenceValidator : validar Pattern [ATCG]+
 
-Controller -> Validator: isValid(dna)
-activate Validator
-Validator -> Validator: Verificar null/vacío
-Validator -> Validator: Verificar tamaño mínimo (4)
-Validator -> Validator: Verificar NxN
-Validator -> Validator: Verificar caracteres (ATCG)
+alt [ADN inválido (no cumple validaciones)]
+    ValidDnaSequenceValidator --> MutantController : MethodArgumentNotValidException
+    deactivate ValidDnaSequenceValidator
 
-alt DNA Inválido
-    Validator --> Controller: false
-    deactivate Validator
-    Controller -> Handler: MethodArgumentNotValidException
-    activate Handler
-    Handler --> Client: 400 Bad Request (ErrorResponse)
-    deactivate Handler
-else DNA Válido
-    Validator --> Controller: true
+    MutantController -> GlobalExceptionHandler : handleValidationErrors()
+    activate GlobalExceptionHandler
 
-    == 2. Lógica de Negocio y Caché ==
+    GlobalExceptionHandler -> GlobalExceptionHandler : getFieldErrors()
+    GlobalExceptionHandler -> GlobalExceptionHandler : concatenar mensajes de error
 
-    Controller -> Service: analyzeDna(dna)
-    activate Service
+    create ErrorResponse
+    GlobalExceptionHandler -> ErrorResponse : create()
+    activate ErrorResponse
+    note right: timestamp, status: 400,\nerror: "Bad Request",\nmessage, path
+    ErrorResponse --> GlobalExceptionHandler : ErrorResponse
+    deactivate ErrorResponse
 
-    Service -> Service: calculateDnaHash(dna)
-    note right: Genera SHA-256 hexadecimal
+    GlobalExceptionHandler --> Usuario : HTTP 400 Bad Request\nErrorResponse
+    deactivate GlobalExceptionHandler
+    deactivate MutantController
 
-    Service -> Repository: findByDnaHash(hash)
-    activate Repository
-    Repository -> DB: SELECT * FROM dna_records WHERE dna_hash = ?
-    activate DB
-    DB --> Repository: Optional<DnaRecord>
-    deactivate DB
-    Repository --> Service: existingRecord
-    deactivate Repository
+else [ADN válido]
+    ValidDnaSequenceValidator --> MutantController : true
+    deactivate ValidDnaSequenceValidator
 
-    alt DNA ya analizado (Cache Hit)
-        Service --> Controller: isMutant (recuperado de BD)
+    MutantController -> MutantService : analyzeDna(dna[]): boolean
+    activate MutantService
 
-    else DNA nuevo (Cache Miss)
+    MutantService -> MutantService : calculateDnaHash(dna): String
+    activate MutantService
+    note right: Genera SHA-256 hash\npara deduplicación\ny caché
+    MutantService -> MutantService : MessageDigest.getInstance("SHA-256")
+    MutantService -> MutantService : String.join("", dna)
+    MutantService -> MutantService : digest(bytes)
+    MutantService -> MutantService : convertir a hexadecimal
 
-        == 3. Algoritmo de Detección ==
+    alt [Error NoSuchAlgorithmException]
+        MutantService --> MutantService : throw DnaHashCalculationException
+        deactivate MutantService
 
-        Service -> Detector: isMutant(dna)
-        activate Detector
+        MutantService -> GlobalExceptionHandler : handleDnaHashCalculationException()
+        activate GlobalExceptionHandler
 
-        Detector -> Detector: Convertir a char[][]
+        create ErrorResponse
+        GlobalExceptionHandler -> ErrorResponse : create()
+        activate ErrorResponse
+        ErrorResponse --> GlobalExceptionHandler : ErrorResponse
+        deactivate ErrorResponse
 
-        loop Recorrer Matriz (Single Pass)
-            Detector -> Detector: checkHorizontal/Vertical/Diagonal
+        GlobalExceptionHandler --> Usuario : HTTP 500 Internal Server Error
+        deactivate GlobalExceptionHandler
+        deactivate MutantService
+        deactivate MutantController
 
-            opt Más de 1 secuencia encontrada
-                note left of Detector: Early Termination
-                Detector --> Service: true
-            end
-        end
+    else [Hash calculado correctamente]
+        MutantService --> MutantService : dnaHash
+        deactivate MutantService
 
-        Detector --> Service: false
-        deactivate Detector
+        MutantService -> DnaRecordRepository : findByDnaHash(dnaHash): Optional<DnaRecord>
+        activate DnaRecordRepository
 
-        == 4. Persistencia ==
-
-        Service -> Repository: save(new DnaRecord(...))
-        activate Repository
-        Repository -> DB: INSERT INTO dna_records...
+        DnaRecordRepository -> DB : SELECT * FROM dna_records\nWHERE dna_hash = ?
         activate DB
-        DB --> Repository: savedRecord
+        DB --> DnaRecordRepository : ResultSet
         deactivate DB
-        Repository --> Service: return record
-        deactivate Repository
 
-        Service --> Controller: isMutant
+        DnaRecordRepository --> MutantService : Optional<DnaRecord>
+        deactivate DnaRecordRepository
+
+        alt [ADN ya analizado - CACHE HIT]
+            note right of MutantService: Registro encontrado en BD\nNo se recalcula
+
+            MutantService -> MutantService : existingRecord.get().isMutant()
+            MutantService --> MutantController : boolean isMutant
+
+        else [ADN nuevo - CACHE MISS]
+            note right of MutantService: Primera vez que se analiza\neste ADN
+
+            MutantService -> MutantDetector : isMutant(dna[]): boolean
+            activate MutantDetector
+
+            MutantDetector -> MutantDetector : isValidDna(dna): boolean
+            activate MutantDetector
+            MutantDetector --> MutantDetector : true
+            deactivate MutantDetector
+
+            MutantDetector -> MutantDetector : convertir String[] a char[][]
+            note right: Optimización O(1)\npara acceso directo
+
+            MutantDetector -> MutantDetector : sequenceCount = 0
+
+            loop Por cada fila (row = 0 hasta n-1)
+                loop Por cada columna (col = 0 hasta n-1)
+
+                    alt [col <= n - 4]
+                        MutantDetector -> MutantDetector : checkHorizontal(matrix, row, col): boolean
+                        activate MutantDetector
+                        note right: Compara 4 caracteres\nconsecutivos horizontales
+                        MutantDetector -> MutantDetector : matriz[row][col...col+3] == base
+                        MutantDetector --> MutantDetector : boolean
+                        deactivate MutantDetector
+
+                        alt [Secuencia encontrada]
+                            MutantDetector -> MutantDetector : sequenceCount++
+
+                            alt [sequenceCount > 1]
+                                note right: Early Termination:\nMás de 1 secuencia\ndetectada = MUTANTE
+                                MutantDetector --> MutantService : true
+                            end
+                        end
+                    end
+
+                    alt [row <= n - 4]
+                        MutantDetector -> MutantDetector : checkVertical(matrix, row, col): boolean
+                        activate MutantDetector
+                        note right: Compara 4 caracteres\nverticales
+                        MutantDetector --> MutantDetector : boolean
+                        deactivate MutantDetector
+
+                        alt [Secuencia encontrada]
+                            MutantDetector -> MutantDetector : sequenceCount++
+                            alt [sequenceCount > 1]
+                                MutantDetector --> MutantService : true
+                            end
+                        end
+                    end
+
+                    alt [row <= n-4 && col <= n-4]
+                        MutantDetector -> MutantDetector : checkDiagonalDescending(matrix, row, col)
+                        activate MutantDetector
+                        note right: Diagonal descendente ↘
+                        MutantDetector --> MutantDetector : boolean
+                        deactivate MutantDetector
+
+                        alt [Secuencia encontrada]
+                            MutantDetector -> MutantDetector : sequenceCount++
+                            alt [sequenceCount > 1]
+                                MutantDetector --> MutantService : true
+                            end
+                        end
+                    end
+
+                    alt [row >= 3 && col <= n-4]
+                        MutantDetector -> MutantDetector : checkDiagonalAscending(matrix, row, col)
+                        activate MutantDetector
+                        note right: Diagonal ascendente ↗
+                        MutantDetector --> MutantDetector : boolean
+                        deactivate MutantDetector
+
+                        alt [Secuencia encontrada]
+                            MutantDetector -> MutantDetector : sequenceCount++
+                            alt [sequenceCount > 1]
+                                MutantDetector --> MutantService : true
+                            end
+                        end
+                    end
+
+                end
+            end
+
+            note right of MutantDetector: Si termina el loop sin\nretornar true, entonces\nsequenceCount <= 1
+
+            MutantDetector --> MutantService : false (NO ES MUTANTE)
+            deactivate MutantDetector
+
+            create DnaRecord
+            MutantService -> DnaRecord : new DnaRecord(dnaHash, isMutant)
+            activate DnaRecord
+            DnaRecord -> DnaRecord : setCreatedAt(LocalDateTime.now())
+            DnaRecord --> MutantService : DnaRecord
+            deactivate DnaRecord
+
+            MutantService -> DnaRecordRepository : save(dnaRecord): DnaRecord
+            activate DnaRecordRepository
+
+            DnaRecordRepository -> DB : INSERT INTO dna_records\n(dna_hash, is_mutant, created_at)\nVALUES (?, ?, ?)
+            activate DB
+            DB --> DnaRecordRepository : registro persistido
+            deactivate DB
+
+            DnaRecordRepository --> MutantService : DnaRecord
+            deactivate DnaRecordRepository
+
+            MutantService --> MutantController : boolean isMutant
+        end
     end
-    deactivate Service
+    deactivate MutantService
 
-    == 5. Respuesta HTTP ==
-
-    alt es Mutante
-        Controller --> Client: 200 OK
-    else es Humano
-        Controller --> Client: 403 Forbidden
+    alt [isMutant == true]
+        MutantController --> Usuario : HTTP 200 OK
+        note left: ADN Mutante\ndetectado
+    else [isMutant == false]
+        MutantController --> Usuario : HTTP 403 Forbidden
+        note left: ADN Humano\ndetectado
     end
+    deactivate MutantController
 end
 
-deactivate Controller
+Usuario -> MutantController : GET /stats
+activate MutantController
+
+MutantController -> StatsService : getStats(): StatsResponse
+activate StatsService
+
+StatsService -> DnaRecordRepository : countByIsMutant(true): long
+activate DnaRecordRepository
+
+DnaRecordRepository -> DB : SELECT COUNT(*)\nFROM dna_records\nWHERE is_mutant = true
+activate DB
+DB --> DnaRecordRepository : countMutants
+deactivate DB
+
+DnaRecordRepository --> StatsService : long countMutant
+deactivate DnaRecordRepository
+
+StatsService -> DnaRecordRepository : countByIsMutant(false): long
+activate DnaRecordRepository
+
+DnaRecordRepository -> DB : SELECT COUNT(*)\nFROM dna_records\nWHERE is_mutant = false
+activate DB
+DB --> DnaRecordRepository : countHumans
+deactivate DB
+
+DnaRecordRepository --> StatsService : long countHuman
+deactivate DnaRecordRepository
+
+StatsService -> StatsService : calculateRatio(countMutant, countHuman): double
+activate StatsService
+
+alt [countHuman == 0]
+    alt [countMutant > 0]
+        StatsService -> StatsService : ratio = countMutant
+    else [countMutant == 0]
+        StatsService -> StatsService : ratio = 0.0
+    end
+else [countHuman > 0]
+    StatsService -> StatsService : ratio = countMutant / countHuman
+end
+
+StatsService --> StatsService : double ratio
+deactivate StatsService
+
+create StatsResponse
+StatsService -> StatsResponse : new StatsResponse(countMutant, countHuman, ratio)
+activate StatsResponse
+StatsResponse --> StatsService : StatsResponse
+deactivate StatsResponse
+
+StatsService --> MutantController : StatsResponse
+deactivate StatsService
+
+MutantController --> Usuario : HTTP 200 OK\n{"count_mutant_dna": 40,\n"count_human_dna": 100,\n"ratio": 0.4}
+deactivate MutantController
 
 @enduml
