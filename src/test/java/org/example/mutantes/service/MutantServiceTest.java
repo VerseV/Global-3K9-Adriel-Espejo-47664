@@ -3,7 +3,6 @@ package org.example.mutantes.service;
 import org.example.mutantes.entity.DnaRecord;
 import org.example.mutantes.repository.DnaRecordRepository;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -18,7 +17,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("MutantService - Tests de Orquestación y Caché")
 class MutantServiceTest {
 
     @Mock
@@ -55,17 +53,13 @@ class MutantServiceTest {
     }
 
     @Test
-    @DisplayName("Debe analizar y guardar DNA mutante cuando no existe en BD")
-    void testAnalyzeDna_SavesMutant_WhenNotCached() {
-        // Arrange
+    void testAnalyzeDnaSavesMutantWhenNotCached() {
         when(dnaRecordRepository.findByDnaHash(anyString())).thenReturn(Optional.empty());
         when(mutantDetector.isMutant(mutantDna)).thenReturn(true);
         when(dnaRecordRepository.save(any(DnaRecord.class))).thenAnswer(i -> i.getArguments()[0]);
 
-        // Act
         boolean result = mutantService.analyzeDna(mutantDna);
 
-        // Assert
         assertTrue(result);
         verify(dnaRecordRepository, times(1)).findByDnaHash(anyString());
         verify(mutantDetector, times(1)).isMutant(mutantDna);
@@ -73,17 +67,13 @@ class MutantServiceTest {
     }
 
     @Test
-    @DisplayName("Debe analizar y guardar DNA humano cuando no existe en BD")
-    void testAnalyzeDna_SavesHuman_WhenNotCached() {
-        // Arrange
+    void testAnalyzeDnaSavesHumanWhenNotCached() {
         when(dnaRecordRepository.findByDnaHash(anyString())).thenReturn(Optional.empty());
         when(mutantDetector.isMutant(humanDna)).thenReturn(false);
         when(dnaRecordRepository.save(any(DnaRecord.class))).thenAnswer(i -> i.getArguments()[0]);
 
-        // Act
         boolean result = mutantService.analyzeDna(humanDna);
 
-        // Assert
         assertFalse(result);
         verify(dnaRecordRepository, times(1)).findByDnaHash(anyString());
         verify(mutantDetector, times(1)).isMutant(humanDna);
@@ -91,33 +81,25 @@ class MutantServiceTest {
     }
 
     @Test
-    @DisplayName("Debe retornar resultado cacheado sin re-analizar (mutante)")
-    void testAnalyzeDna_ReturnsCachedResult_ForMutant() {
-        // Arrange
+    void testAnalyzeDnaReturnsCachedResultForMutant() {
         DnaRecord cachedRecord = new DnaRecord("hash123", true);
         when(dnaRecordRepository.findByDnaHash(anyString())).thenReturn(Optional.of(cachedRecord));
 
-        // Act
         boolean result = mutantService.analyzeDna(mutantDna);
 
-        // Assert
         assertTrue(result);
         verify(dnaRecordRepository, times(1)).findByDnaHash(anyString());
-        verify(mutantDetector, never()).isMutant(any());  // No debe llamar al detector
-        verify(dnaRecordRepository, never()).save(any());  // No debe guardar
+        verify(mutantDetector, never()).isMutant(any());
+        verify(dnaRecordRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("Debe retornar resultado cacheado sin re-analizar (humano)")
-    void testAnalyzeDna_ReturnsCachedResult_ForHuman() {
-        // Arrange
+    void testAnalyzeDnaReturnsCachedResultForHuman() {
         DnaRecord cachedRecord = new DnaRecord("hash456", false);
         when(dnaRecordRepository.findByDnaHash(anyString())).thenReturn(Optional.of(cachedRecord));
 
-        // Act
         boolean result = mutantService.analyzeDna(humanDna);
 
-        // Assert
         assertFalse(result);
         verify(dnaRecordRepository, times(1)).findByDnaHash(anyString());
         verify(mutantDetector, never()).isMutant(any());
@@ -125,17 +107,13 @@ class MutantServiceTest {
     }
 
     @Test
-    @DisplayName("Debe calcular hash consistente para el mismo DNA")
-    void testCalculateDnaHash_IsConsistent() {
-        // Arrange
+    void testCalculateDnaHashIsConsistent() {
         when(dnaRecordRepository.findByDnaHash(anyString())).thenReturn(Optional.empty());
         when(mutantDetector.isMutant(any())).thenReturn(true);
 
-        // Act
         mutantService.analyzeDna(mutantDna);
         mutantService.analyzeDna(mutantDna);
 
-        // Assert - debe llamarse 2 veces con el mismo hash
         verify(dnaRecordRepository, times(2)).findByDnaHash(anyString());
     }
 }

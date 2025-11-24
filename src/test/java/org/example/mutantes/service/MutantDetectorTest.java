@@ -1,12 +1,10 @@
 package org.example.mutantes.service;
 
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@DisplayName("MutantDetector - Tests del Algoritmo")
 class MutantDetectorTest {
 
     private MutantDetector mutantDetector;
@@ -16,24 +14,22 @@ class MutantDetectorTest {
         mutantDetector = new MutantDetector();
     }
 
-    // ==================== CASOS MUTANTES ====================
+    // Casos Mutantes
 
     @Test
-    @DisplayName("Debe detectar mutante con secuencias horizontal y diagonal")
     void testMutantWithHorizontalAndDiagonalSequences() {
         String[] dna = {
                 "ATGCGA",
                 "CAGTGC",
                 "TTATGT",
                 "AGAAGG",
-                "CCCCTA",  // Horizontal: CCCC
+                "CCCCTA",
                 "TCACTG"
         };
         assertTrue(mutantDetector.isMutant(dna));
     }
 
     @Test
-    @DisplayName("Debe detectar mutante con secuencias verticales")
     void testMutantWithVerticalSequences() {
         String[] dna = {
                 "ATGCGA",
@@ -47,21 +43,19 @@ class MutantDetectorTest {
     }
 
     @Test
-    @DisplayName("Debe detectar mutante con múltiples secuencias horizontales")
     void testMutantWithMultipleHorizontalSequences() {
         String[] dna = {
                 "AAAAGA",
                 "CAGTGC",
                 "TTATGT",
                 "AGAAGG",
-                "CCCCTA",  // Segunda horizontal: CCCC
+                "CCCCTA",
                 "TCACTG"
         };
         assertTrue(mutantDetector.isMutant(dna));
     }
 
     @Test
-    @DisplayName("Debe detectar mutante con diagonales ascendentes y descendentes")
     void testMutantWithBothDiagonals() {
         String[] dna = {
                 "ATGCGA",
@@ -75,25 +69,23 @@ class MutantDetectorTest {
     }
 
     @Test
-    @DisplayName("Debe detectar mutante en matriz grande (10x10)")
     void testMutantWithLargeDna() {
         String[] dna = {
                 "ATGCGAATGC",
                 "CAGTGCCAGT",
                 "TTATGTTTAT",
                 "AGAAGGATAA",
-                "CCCCTACCCC",  // Horizontal
+                "CCCCTACCCC",
                 "TCACTGTCAC",
                 "ATGCGAATGC",
                 "CAGTGCCAGT",
                 "TTATGTTTAT",
-                "AAAAGGATAA"   // Horizontal
+                "AAAAGGATAA"
         };
         assertTrue(mutantDetector.isMutant(dna));
     }
 
     @Test
-    @DisplayName("Debe detectar mutante con 2 diagonales ascendentes")
     void testMutantDiagonalInCorner() {
         String[] dna = {
                 "AAAA",
@@ -105,7 +97,6 @@ class MutantDetectorTest {
     }
 
     @Test
-    @DisplayName("Debe detectar mutante cuando toda la matriz es igual")
     void testMutantAllSameCharacter() {
         String[] dna = {
                 "AAAA",
@@ -116,15 +107,14 @@ class MutantDetectorTest {
         assertTrue(mutantDetector.isMutant(dna));
     }
 
-    // ==================== CASOS HUMANOS ====================
+    // Casos Humanos
 
     @Test
-    @DisplayName("No debe detectar mutante con solo una secuencia")
     void testNotMutantWithOnlyOneSequence() {
         String[] dna = {
                 "ATGCGA",
                 "CAGTGC",
-                "TTATTT",  // Solo una horizontal: TTTT
+                "TTATTT",
                 "AGACGG",
                 "GCGTCA",
                 "TCACTG"
@@ -133,7 +123,6 @@ class MutantDetectorTest {
     }
 
     @Test
-    @DisplayName("No debe detectar mutante sin secuencias")
     void testNotMutantWithNoSequences() {
         String[] dna = {
                 "ATGC",
@@ -145,7 +134,6 @@ class MutantDetectorTest {
     }
 
     @Test
-    @DisplayName("No debe detectar mutante en matriz 4x4 sin secuencias")
     void testNotMutantSmallDna() {
         String[] dna = {
                 "ATGC",
@@ -156,27 +144,24 @@ class MutantDetectorTest {
         assertFalse(mutantDetector.isMutant(dna));
     }
 
-    // ==================== VALIDACIONES ====================
+    // Validaciones
 
     @Test
-    @DisplayName("Debe retornar false para DNA null")
     void testNotMutantWithNullDna() {
         assertFalse(mutantDetector.isMutant(null));
     }
 
     @Test
-    @DisplayName("Debe retornar false para DNA vacío")
     void testNotMutantWithEmptyDna() {
         String[] dna = {};
         assertFalse(mutantDetector.isMutant(dna));
     }
 
     @Test
-    @DisplayName("Debe retornar false para matriz no cuadrada")
     void testNotMutantWithNonSquareDna() {
         String[] dna = {
                 "ATGC",
-                "CAG",     // Fila más corta
+                "CAG",
                 "TTAT",
                 "AGAC"
         };
@@ -184,10 +169,9 @@ class MutantDetectorTest {
     }
 
     @Test
-    @DisplayName("Debe retornar false para caracteres inválidos")
     void testNotMutantWithInvalidCharacters() {
         String[] dna = {
-                "ATGX",  // X es inválido
+                "ATGX",
                 "CAGT",
                 "TTAT",
                 "AGAC"
@@ -196,11 +180,10 @@ class MutantDetectorTest {
     }
 
     @Test
-    @DisplayName("Debe retornar false para fila null")
     void testNotMutantWithNullRow() {
         String[] dna = {
                 "ATGC",
-                null,    // Fila null
+                null,
                 "TTAT",
                 "AGAC"
         };
@@ -208,7 +191,6 @@ class MutantDetectorTest {
     }
 
     @Test
-    @DisplayName("Debe retornar false para matriz muy pequeña (3x3)")
     void testNotMutantWithTooSmallDna() {
         String[] dna = {
                 "ATG",
@@ -218,19 +200,18 @@ class MutantDetectorTest {
         assertFalse(mutantDetector.isMutant(dna));
     }
 
-    // ==================== EDGE CASES ====================
+    // Edge Cases
 
     @Test
-    @DisplayName("Debe detectar mutante incluso con secuencia larga de 6 caracteres")
     void testMutantWithSequenceLongerThanFour() {
         String[] dna = {
-                "AAAAAA",  // 6 A's = múltiples secuencias de 4
+                "AAAAAA",
                 "CAGTGC",
                 "TTATGT",
                 "AGACGG",
                 "GCGTCA",
                 "TCACTG"
         };
-        assertTrue(mutantDetector.isMutant(dna));  // Es mutante porque tiene >1 secuencia
+        assertTrue(mutantDetector.isMutant(dna));
     }
 }
