@@ -1,0 +1,108 @@
+@startuml
+title Diagrama de Secuencia - Detección de Mutantes (POST /mutant)
+autonumber
+
+actor "Cliente" as Client
+participant ":MutantController" as Controller
+participant ":ValidDnaSequenceValidator" as Validator
+participant ":GlobalExceptionHandler" as Handler
+participant ":MutantService" as Service
+participant ":DnaRecordRepository" as Repository
+participant ":MutantDetector" as Detector
+database "H2 Database" as DB
+
+== 1. Recepción y Validación ==
+
+Client -> Controller: POST /mutant { "dna": [...] }
+activate Controller
+
+note right of Controller
+  Spring detecta @Validated y ejecuta
+  la validación personalizada
+end note
+
+Controller -> Validator: isValid(dna)
+activate Validator
+Validator -> Validator: Verificar null/vacío
+Validator -> Validator: Verificar tamaño mínimo (4)
+Validator -> Validator: Verificar NxN
+Validator -> Validator: Verificar caracteres (ATCG)
+
+alt DNA Inválido
+    Validator --> Controller: false
+    deactivate Validator
+    Controller -> Handler: MethodArgumentNotValidException
+    activate Handler
+    Handler --> Client: 400 Bad Request (ErrorResponse)
+    deactivate Handler
+else DNA Válido
+    Validator --> Controller: true
+
+    == 2. Lógica de Negocio y Caché ==
+
+    Controller -> Service: analyzeDna(dna)
+    activate Service
+
+    Service -> Service: calculateDnaHash(dna)
+    note right: Genera SHA-256 hexadecimal
+
+    Service -> Repository: findByDnaHash(hash)
+    activate Repository
+    Repository -> DB: SELECT * FROM dna_records WHERE dna_hash = ?
+    activate DB
+    DB --> Repository: Optional<DnaRecord>
+    deactivate DB
+    Repository --> Service: existingRecord
+    deactivate Repository
+
+    alt DNA ya analizado (Cache Hit)
+        Service --> Controller: isMutant (recuperado de BD)
+
+    else DNA nuevo (Cache Miss)
+
+        == 3. Algoritmo de Detección ==
+
+        Service -> Detector: isMutant(dna)
+        activate Detector
+
+        Detector -> Detector: Convertir a char[][]
+
+        loop Recorrer Matriz (Single Pass)
+            Detector -> Detector: checkHorizontal/Vertical/Diagonal
+
+            opt Más de 1 secuencia encontrada
+                note left of Detector: Early Termination
+                Detector --> Service: true
+            end
+        end
+
+        Detector --> Service: false
+        deactivate Detector
+
+        == 4. Persistencia ==
+
+        Service -> Repository: save(new DnaRecord(...))
+        activate Repository
+        Repository -> DB: INSERT INTO dna_records...
+        activate DB
+        DB --> Repository: savedRecord
+        deactivate DB
+        Repository --> Service: return record
+        deactivate Repository
+
+        Service --> Controller: isMutant
+    end
+    deactivate Service
+
+    == 5. Respuesta HTTP ==
+
+    alt es Mutante
+        Controller --> Client: 200 OK
+    else es Humano
+        Controller --> Client: 403 Forbidden
+    end
+end
+
+deactivate Controller
+
+@enduml
